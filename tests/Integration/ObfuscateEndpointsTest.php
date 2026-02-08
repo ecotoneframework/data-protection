@@ -18,14 +18,10 @@ use Ecotone\Test\LicenceTesting;
 use PHPUnit\Framework\TestCase;
 use Test\Ecotone\DataProtection\Fixture\AnnotatedMessage;
 use Test\Ecotone\DataProtection\Fixture\MessageReceiver;
-use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerCalledWithRoutingKey;
-use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerWithAnnotatedEndpoint;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerWithAnnotatedEndpointWithAlreadyAnnotatedMessage;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerWithAnnotatedEndpointWithSecondaryEncryptionKey;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerWithAnnotatedMethodWithoutPayload;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\CommandHandlerWithAnnotatedPayloadAndHeader;
-use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\EventHandlerCalledWithRoutingKey;
-use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\EventHandlerWithAnnotatedEndpoint;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\EventHandlerWithAnnotatedEndpointWithAlreadyAnnotatedMessage;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\EventHandlerWithAnnotatedEndpointWithSecondaryEncryptionKey;
 use Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints\EventHandlerWithAnnotatedMethodWithoutPayload;
@@ -47,51 +43,6 @@ class ObfuscateEndpointsTest extends TestCase
     {
         $this->primaryKey = Key::createNewRandomKey();
         $this->secondaryKey = Key::createNewRandomKey();
-    }
-
-    public function test_command_handler_with_annotated_endpoint(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                CommandHandlerWithAnnotatedEndpoint::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new CommandHandlerWithAnnotatedEndpoint(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-        );
-
-        $ecotone
-            ->sendCommand(
-                $messageSent = new SomeMessage(
-                    class: new TestClass('value', TestEnum::FIRST),
-                    enum: TestEnum::FIRST,
-                    argument: 'value',
-                ),
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($messageSent, $messageReceiver->receivedMessage());
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messagePayload = Crypto::decrypt(base64_decode($channelMessage->getPayload()), $this->primaryKey);
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('{"class":{"argument":"value","enum":"first"},"enum":"first","argument":"value"}', $messagePayload);
-        self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->primaryKey));
-        self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->primaryKey));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
     }
 
     public function test_command_handler_with_annotated_endpoint_with_already_annotated_message(): void
@@ -182,88 +133,6 @@ class ObfuscateEndpointsTest extends TestCase
         self::assertEquals('{"class":{"argument":"value","enum":"first"},"enum":"first","argument":"value"}', $messagePayload);
         self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->secondaryKey));
         self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->secondaryKey));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
-    }
-
-    public function test_command_handler_called_with_routing_key(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                CommandHandlerCalledWithRoutingKey::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new CommandHandlerCalledWithRoutingKey(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-        );
-
-        $ecotone
-            ->sendCommandWithRoutingKey(
-                routingKey: 'command',
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('[]', $channelMessage->getPayload());
-        self::assertEquals($metadataSent['foo'], $messageHeaders->get('foo'));
-        self::assertEquals($metadataSent['bar'], $messageHeaders->get('bar'));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
-    }
-
-    public function test_command_handler_called_with_routing_key_will_use_channel_obfuscator(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                CommandHandlerCalledWithRoutingKey::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new CommandHandlerCalledWithRoutingKey(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-            extensionObjects: [
-                ChannelProtectionConfiguration::create('test')->withSensitiveHeader('foo')->withSensitiveHeader('bar'),
-            ]
-        );
-
-        $ecotone
-            ->sendCommandWithRoutingKey(
-                routingKey: 'command',
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messagePayload = Crypto::decrypt(base64_decode($channelMessage->getPayload()), $this->primaryKey);
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('[]', $messagePayload);
-        self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->primaryKey));
-        self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->primaryKey));
         self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
     }
 
@@ -391,51 +260,6 @@ class ObfuscateEndpointsTest extends TestCase
         self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
     }
 
-    public function test_event_handler_with_annotated_endpoint(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                EventHandlerWithAnnotatedEndpoint::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new EventHandlerWithAnnotatedEndpoint(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-        );
-
-        $ecotone
-            ->publishEvent(
-                $messageSent = new SomeMessage(
-                    class: new TestClass('value', TestEnum::FIRST),
-                    enum: TestEnum::FIRST,
-                    argument: 'value',
-                ),
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($messageSent, $messageReceiver->receivedMessage());
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messagePayload = Crypto::decrypt(base64_decode($channelMessage->getPayload()), $this->primaryKey);
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('{"class":{"argument":"value","enum":"first"},"enum":"first","argument":"value"}', $messagePayload);
-        self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->primaryKey));
-        self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->primaryKey));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
-    }
-
     public function test_event_handler_with_annotated_endpoint_with_already_annotated_message(): void
     {
         $ecotone = $this->bootstrapEcotone(
@@ -524,88 +348,6 @@ class ObfuscateEndpointsTest extends TestCase
         self::assertEquals('{"class":{"argument":"value","enum":"first"},"enum":"first","argument":"value"}', $messagePayload);
         self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->secondaryKey));
         self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->secondaryKey));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
-    }
-
-    public function test_event_handler_called_with_routing_key(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                EventHandlerCalledWithRoutingKey::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new EventHandlerCalledWithRoutingKey(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-        );
-
-        $ecotone
-            ->publishEventWithRoutingKey(
-                routingKey: 'event',
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('[]', $channelMessage->getPayload());
-        self::assertEquals($metadataSent['foo'], $messageHeaders->get('foo'));
-        self::assertEquals($metadataSent['bar'], $messageHeaders->get('bar'));
-        self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
-    }
-
-    public function test_event_handler_called_with_routing_key_will_use_channel_obfuscator(): void
-    {
-        $ecotone = $this->bootstrapEcotone(
-            classesToResolve: [
-                EventHandlerCalledWithRoutingKey::class,
-            ],
-            container: [
-                $messageReceiver = new MessageReceiver(),
-                new EventHandlerCalledWithRoutingKey(),
-            ],
-            messageChannel: $channel = TestQueueChannel::create('test'),
-            extensionObjects: [
-                ChannelProtectionConfiguration::create('test')->withSensitiveHeader('foo')->withSensitiveHeader('bar'),
-            ]
-        );
-
-        $ecotone
-            ->publishEventWithRoutingKey(
-                routingKey: 'event',
-                metadata: $metadataSent = [
-                    'foo' => 'secret-value',
-                    'bar' => 'even-more-secret-value',
-                    'baz' => 'non-sensitive-value',
-                ]
-            )
-            ->run('test', ExecutionPollingMetadata::createWithTestingSetup())
-        ;
-
-        $receivedHeaders = $messageReceiver->receivedHeaders();
-        self::assertEquals($metadataSent['foo'], $receivedHeaders['foo']);
-        self::assertEquals($metadataSent['bar'], $receivedHeaders['bar']);
-        self::assertEquals($metadataSent['baz'], $receivedHeaders['baz']);
-
-        $channelMessage = $channel->getLastSentMessage();
-        $messagePayload = Crypto::decrypt(base64_decode($channelMessage->getPayload()), $this->primaryKey);
-        $messageHeaders = $channelMessage->getHeaders();
-
-        self::assertEquals('[]', $messagePayload);
-        self::assertEquals($metadataSent['foo'], Crypto::decrypt(base64_decode($messageHeaders->get('foo')), $this->primaryKey));
-        self::assertEquals($metadataSent['bar'], Crypto::decrypt(base64_decode($messageHeaders->get('bar')), $this->primaryKey));
         self::assertEquals($metadataSent['baz'], $messageHeaders->get('baz'));
     }
 

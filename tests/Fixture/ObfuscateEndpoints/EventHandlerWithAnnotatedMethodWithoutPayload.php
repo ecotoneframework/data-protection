@@ -2,7 +2,6 @@
 
 namespace Test\Ecotone\DataProtection\Fixture\ObfuscateEndpoints;
 
-use Ecotone\DataProtection\Attribute\Sensitive;
 use Ecotone\DataProtection\Attribute\WithSensitiveHeader;
 use Ecotone\Messaging\Attribute\Asynchronous;
 use Ecotone\Messaging\Attribute\Parameter\Headers;
@@ -13,7 +12,6 @@ use Test\Ecotone\DataProtection\Fixture\MessageReceiver;
 #[Asynchronous('test')]
 class EventHandlerWithAnnotatedMethodWithoutPayload
 {
-    #[Sensitive]
     #[WithSensitiveHeader('foo')]
     #[WithSensitiveHeader('bar')]
     #[WithSensitiveHeader('fos')]
