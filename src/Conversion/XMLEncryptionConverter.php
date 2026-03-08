@@ -10,15 +10,18 @@ use Ecotone\Messaging\Handler\Type;
 /**
  * licence Enterprise
  */
-class XPhpDecryptionConverter extends AbstractDecryptionConverter
+class XMLEncryptionConverter extends AbstractEncryptionConverter
 {
     public function convert($source, Type $sourceType, MediaType $sourceMediaType, Type $targetType, MediaType $targetMediaType)
     {
-        return $this->decrypt($source);
+        $data = XmlHelper::xmlToArray($source);
+        $data = $this->encrypt($data);
+
+        return XmlHelper::arrayToXml($data);
     }
 
     public function matches(Type $sourceType, MediaType $sourceMediaType, Type $targetType, MediaType $targetMediaType): bool
     {
-        return $targetType->acceptType($this->supportedType) && $sourceType->isIterable() && $sourceMediaType->isCompatibleWith(MediaType::createApplicationXPHP()) && $sourceMediaType->hasParameter('encrypted');
+        return $sourceType->acceptType($this->supportedType) && $targetType->isString() && $targetMediaType->isCompatibleWith(MediaType::createApplicationXml()) && $targetMediaType->hasParameter('encrypted');
     }
 }
