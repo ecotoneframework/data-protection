@@ -2,9 +2,11 @@
 
 /**
  * licence Enterprise
+ *
+ * Use requires an Ecotone Enterprise licence (see LICENSE-ENTERPRISE; trial: https://ecotone.tech/pricing).
  */
 
-namespace Ecotone\DataProtection\Attribute;
+namespace Ecotone\Api\DataProtection;
 
 use Attribute;
 
