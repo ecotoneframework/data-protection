@@ -2,7 +2,7 @@
 
 namespace Test\Ecotone\DataProtection\Fixture;
 
-use Ecotone\Api\DataProtection\Sensitive;
+use Ecotone\DataProtection\Attribute\Sensitive;
 
 #[Sensitive]
 class AnnotatedMessage

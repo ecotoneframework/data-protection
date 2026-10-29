@@ -2,15 +2,14 @@
 
 namespace Ecotone\DataProtection\Encryption;
 
-use function chr;
-
 // We're using static class inheritance to get access to protected methods
 // inside Crypto. To make it easy to know where the method we're calling can be
 // found, within this file, prefix calls with `Crypto::` or `RuntimeTests::`,
 // and don't use `self::`.
 
 
-use Ecotone\Api\DataProtection\Key;
+use function chr;
+
 use Ecotone\DataProtection\Encryption\Exception\BadFormatException;
 use Ecotone\DataProtection\Encryption\Exception\CryptoException;
 use Ecotone\DataProtection\Encryption\Exception\EnvironmentIsBrokenException;

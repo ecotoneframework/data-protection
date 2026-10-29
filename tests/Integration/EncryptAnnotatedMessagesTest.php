@@ -2,16 +2,17 @@
 
 namespace Test\Ecotone\DataProtection\Integration;
 
-use Ecotone\Api\DataProtection\DataProtectionConfiguration;
-use Ecotone\Api\DataProtection\Key;
-use Ecotone\Api\ExtensionObject\ExecutionPollingMetadata;
-use Ecotone\Api\ExtensionObject\ModulePackageList;
-use Ecotone\Api\ExtensionObject\SimpleMessageChannelBuilder;
-use Ecotone\Api\JMSConverter\JMSConverterConfiguration;
-use Ecotone\Api\Lite\EcotoneLite;
-use Ecotone\Api\Lite\Test\FlowTestSupport;
-use Ecotone\Api\Messaging\MessageChannel;
+use Ecotone\DataProtection\Configuration\DataProtectionConfiguration;
 use Ecotone\DataProtection\Encryption\Crypto;
+use Ecotone\DataProtection\Encryption\Key;
+use Ecotone\JMSConverter\JMSConverterConfiguration;
+use Ecotone\Lite\EcotoneLite;
+use Ecotone\Lite\Test\FlowTestSupport;
+use Ecotone\Messaging\Channel\SimpleMessageChannelBuilder;
+use Ecotone\Messaging\Config\ModulePackageList;
+use Ecotone\Messaging\Config\ServiceConfiguration;
+use Ecotone\Messaging\Endpoint\ExecutionPollingMetadata;
+use Ecotone\Messaging\MessageChannel;
 use Ecotone\Test\LicenceTesting;
 use PHPUnit\Framework\TestCase;
 use Test\Ecotone\DataProtection\Fixture\AnnotatedMessage;
@@ -352,10 +353,21 @@ class EncryptAnnotatedMessagesTest extends TestCase
         return EcotoneLite::bootstrapFlowTesting(
             classesToResolve: $classesToResolve,
             containerOrAvailableServices: $container,
-            extensionObjects: array_merge([DataProtectionConfiguration::create('primary', $this->primaryKey)->withKey('secondary', $this->secondaryKey), SimpleMessageChannelBuilder::create('test', $messageChannel), JMSConverterConfiguration::createWithDefaults()->withDefaultEnumSupport(true), ], $extensionObjects, ),
-            enabledModules: [ModulePackageList::AMQP_PACKAGE, ModulePackageList::DATA_PROTECTION_PACKAGE, ModulePackageList::JMS_CONVERTER_PACKAGE],
-            licenceKey: LicenceTesting::VALID_LICENCE,
-            namespaces: ['Test\Ecotone\DataProtection\Fixture\EncryptAnnotatedMessages'],
+            configuration: ServiceConfiguration::createWithDefaults()
+                ->withLicenceKey(LicenceTesting::VALID_LICENCE)
+                ->withSkippedModulePackageNames(ModulePackageList::allPackagesExcept([ModulePackageList::AMQP_PACKAGE, ModulePackageList::ASYNCHRONOUS_PACKAGE, ModulePackageList::DATA_PROTECTION_PACKAGE, ModulePackageList::JMS_CONVERTER_PACKAGE]))
+                ->withNamespaces(['Test\Ecotone\DataProtection\Fixture\EncryptAnnotatedMessages'])
+                ->withExtensionObjects(
+                    array_merge(
+                        [
+                            DataProtectionConfiguration::create('primary', $this->primaryKey)
+                                ->withKey('secondary', $this->secondaryKey),
+                            SimpleMessageChannelBuilder::create('test', $messageChannel),
+                            JMSConverterConfiguration::createWithDefaults()->withDefaultEnumSupport(true),
+                        ],
+                        $extensionObjects,
+                    )
+                )
         );
     }
 

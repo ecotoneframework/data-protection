@@ -2,20 +2,19 @@
 
 /**
  * licence Enterprise
- *
- * Use requires an Ecotone Enterprise licence (see LICENSE-ENTERPRISE; trial: https://ecotone.tech/pricing).
  */
 
-namespace Ecotone\Api\DataProtection;
+namespace Ecotone\DataProtection\Configuration;
 
+use Ecotone\DataProtection\Encryption\Key;
 use Ecotone\Messaging\Support\Assert;
 
-final class DataProtectionConfiguration
+class DataProtectionConfiguration
 {
     /**
      * @param array<string, Key> $keys
      */
-    private function __construct(public readonly array $keys, public readonly string $defaultKey)
+    private function __construct(private array $keys, private string $defaultKey)
     {
     }
 
@@ -28,11 +27,23 @@ final class DataProtectionConfiguration
     {
         Assert::keyNotExists($this->keys, $name, sprintf('Encryption key name `%s` already exists', $name));
 
-        return new self(...[...get_object_vars($this), 'keys' => array_replace($this->keys, [$name => $key]), 'defaultKey' => $asDefault ? $name : $this->defaultKey]);
+        $config = clone $this;
+        $config->keys[$name] = $key;
+
+        if ($asDefault) {
+            $config->defaultKey = $name;
+        }
+
+        return $config;
     }
 
     public function keyName(?string $name): string
     {
         return $name !== null && array_key_exists($name, $this->keys) ? $name : $this->defaultKey;
+    }
+
+    public function keys(): array
+    {
+        return $this->keys;
     }
 }

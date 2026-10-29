@@ -1,11 +1,9 @@
 <?php
 
-namespace Ecotone\Api\DataProtection;
+namespace Ecotone\DataProtection\Configuration;
 
 /**
  * licence Enterprise
- *
- * Use requires an Ecotone Enterprise licence (see LICENSE-ENTERPRISE; trial: https://ecotone.tech/pricing).
  */
 readonly class ChannelProtectionConfiguration
 {

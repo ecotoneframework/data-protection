@@ -2,7 +2,6 @@
 
 namespace Ecotone\DataProtection\Encryption;
 
-use Ecotone\Api\DataProtection\Key;
 use Ecotone\DataProtection\Encryption\Exception\CryptoException;
 use Ecotone\DataProtection\Encryption\Exception\EnvironmentIsBrokenException;
 use Ecotone\DataProtection\Encryption\Exception\WrongKeyOrModifiedCiphertextException;

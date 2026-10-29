@@ -2,8 +2,8 @@
 
 namespace Test\Ecotone\DataProtection\Fixture;
 
-use Ecotone\Api\DataProtection\Sensitive;
-use Ecotone\Api\DataProtection\WithEncryptionKey;
+use Ecotone\DataProtection\Attribute\Sensitive;
+use Ecotone\DataProtection\Attribute\WithEncryptionKey;
 
 #[Sensitive]
 #[WithEncryptionKey('secondary')]
